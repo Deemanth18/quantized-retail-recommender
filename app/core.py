@@ -92,9 +92,107 @@ def milestone_1() -> dict[str, Any]:
     return prepare_synthetic_baskets(n_baskets=10000)
 
 
+class BasketLanguageModel(nn.Module):
+    """A compact language model for shopping basket sequence modeling and next-item prediction."""
+
+    def __init__(
+        self,
+        vocab_size: int,
+        embed_dim: int = 64,
+        hidden_dim: int = 128,
+        num_layers: int = 2,
+    ):
+        super().__init__()
+        self.vocab_size = vocab_size
+        self.embed_dim = embed_dim
+        self.hidden_dim = hidden_dim
+        self.embedding = nn.Embedding(vocab_size, embed_dim, padding_idx=0)
+        self.lstm = nn.LSTM(embed_dim, hidden_dim, num_layers=num_layers, batch_first=True)
+        self.fc = nn.Linear(hidden_dim, vocab_size)
+
+    def forward(self, x: torch.Tensor, hidden: Any = None) -> tuple[torch.Tensor, Any]:
+        embeds = self.embedding(x)
+        out, hidden = self.lstm(embeds, hidden)
+        logits = self.fc(out)
+        return logits, hidden
+
+
+def train_basket_lm(
+    data: dict[str, Any],
+    epochs: int = 2,
+    batch_size: int = 32,
+    learning_rate: float = 2e-3,
+    embed_dim: int = 64,
+    hidden_dim: int = 128,
+    max_baskets: int = 2000,
+) -> tuple[BasketLanguageModel, dict[str, Any]]:
+    """Train a small language model on synthetic shopping basket token sequences."""
+    baskets = data["baskets"][:max_baskets]
+    item_to_id = data["item_to_id"]
+    vocab_size = len(data["vocab"])
+
+    # Prepare token sequences: <bos> item1 item2 ... <eos>
+    bos_id = item_to_id["<bos>"]
+    eos_id = item_to_id["<eos>"]
+    sequences = []
+    for b in baskets:
+        seq = [bos_id] + [item_to_id[it] for it in b if it in item_to_id] + [eos_id]
+        sequences.append(seq)
+
+    # Pad sequences
+    max_len = max(len(s) for s in sequences)
+    padded = np.zeros((len(sequences), max_len), dtype=np.int64)
+    for i, s in enumerate(sequences):
+        padded[i, :len(s)] = s
+
+    tensor_data = torch.from_numpy(padded)
+    dataset = torch.utils.data.TensorDataset(tensor_data)
+    loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+    model = BasketLanguageModel(vocab_size, embed_dim=embed_dim, hidden_dim=hidden_dim)
+    model.train()
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+
+    history = []
+    for ep in range(epochs):
+        ep_loss = 0.0
+        batches = 0
+        for (batch_x,) in loader:
+            inputs = batch_x[:, :-1]
+            targets = batch_x[:, 1:]
+
+            optimizer.zero_grad()
+            logits, _ = model(inputs)
+            loss = F.cross_entropy(
+                logits.reshape(-1, vocab_size),
+                targets.reshape(-1),
+                ignore_index=0,
+            )
+            loss.backward()
+            optimizer.step()
+
+            ep_loss += loss.item()
+            batches += 1
+
+        avg_loss = ep_loss / max(1, batches)
+        history.append({"epoch": ep + 1, "loss": avg_loss})
+
+    model.eval()
+    return model, {"history": history, "vocab_size": vocab_size}
+
+
 # --- Milestone 2: Continue pretraining a small LM on the basket data
-def milestone_2():  # TODO(milestone 2)
-    raise NotImplementedError("TODO(milestone 2)")
+# Hint: Continue pretraining the language model.
+def milestone_2(
+    data: dict[str, Any] | None = None,
+    epochs: int = 2,
+    max_baskets: int = 2000,
+) -> tuple[BasketLanguageModel, dict[str, Any]]:
+    """Milestone 2: Continue pretraining a small LM on the basket data."""
+    if data is None:
+        data = milestone_1()
+    model, info = train_basket_lm(data, epochs=epochs, max_baskets=max_baskets)
+    return model, data
 
 
 # --- Milestone 3: Implement next-item prediction and itemset probing

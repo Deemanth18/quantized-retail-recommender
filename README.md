@@ -16,7 +16,7 @@ Tick these off as you go, and commit after each one.
 
 - [x] **1. Prepare synthetic shopping basket data for training**  
       Hint: Prepare data for language model training.
-- [ ] **2. Continue pretraining a small LM on the basket data**  
+- [x] **2. Continue pretraining a small LM on the basket data**  
       Hint: Continue pretraining the language model.
 - [ ] **3. Implement next-item prediction and itemset probing**  
       Hint: Use the language model for next-item prediction and itemset probing.

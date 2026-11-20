@@ -3,8 +3,9 @@
 They start skipped. Remove the `skip` line as you work on each milestone.
 """
 import pytest
+import torch
 
-from app.core import milestone_1, prepare_synthetic_baskets
+from app.core import BasketLanguageModel, milestone_1, milestone_2, prepare_synthetic_baskets
 
 
 # Milestone 1: Prepare synthetic shopping basket data for training
@@ -35,9 +36,19 @@ def test_milestone_1():
 
 
 # Milestone 2: Continue pretraining a small LM on the basket data
-@pytest.mark.skip(reason="remove this line when you start milestone 2")
 def test_milestone_2():
-    raise NotImplementedError("write the test for milestone 2")
+    data = prepare_synthetic_baskets(n_baskets=200, seed=1)
+    model, returned_data = milestone_2(data=data, epochs=1, max_baskets=100)
+
+    assert isinstance(model, BasketLanguageModel)
+    assert returned_data is data
+
+    # Test forward pass with batch
+    dummy_input = torch.tensor([[1, 3, 4], [1, 5, 0]], dtype=torch.long)
+    logits, _ = model(dummy_input)
+
+    assert logits.shape == (2, 3, len(data["vocab"]))
+    assert not torch.isnan(logits).any()
 
 
 # Milestone 3: Implement next-item prediction and itemset probing
