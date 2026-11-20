@@ -18,7 +18,7 @@ Tick these off as you go, and commit after each one.
       Hint: Prepare data for language model training.
 - [x] **2. Continue pretraining a small LM on the basket data**  
       Hint: Continue pretraining the language model.
-- [ ] **3. Implement next-item prediction and itemset probing**  
+- [x] **3. Implement next-item prediction and itemset probing**  
       Hint: Use the language model for next-item prediction and itemset probing.
 - [ ] **4. Measure the baseline size and accuracy of the model**  
       Hint: Measure initial model size and accuracy.

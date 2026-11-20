@@ -5,7 +5,15 @@ They start skipped. Remove the `skip` line as you work on each milestone.
 import pytest
 import torch
 
-from app.core import BasketLanguageModel, milestone_1, milestone_2, prepare_synthetic_baskets
+from app.core import (
+    BasketLanguageModel,
+    milestone_1,
+    milestone_2,
+    milestone_3,
+    predict_next_items,
+    prepare_synthetic_baskets,
+    probe_itemsets,
+)
 
 
 # Milestone 1: Prepare synthetic shopping basket data for training
@@ -52,9 +60,33 @@ def test_milestone_2():
 
 
 # Milestone 3: Implement next-item prediction and itemset probing
-@pytest.mark.skip(reason="remove this line when you start milestone 3")
 def test_milestone_3():
-    raise NotImplementedError("write the test for milestone 3")
+    data = prepare_synthetic_baskets(n_baskets=300, seed=42)
+    model, _ = milestone_2(data=data, epochs=1, max_baskets=150)
+
+    # Test next-item prediction
+    current = ["Bread White", "Butter 200g"]
+    preds = predict_next_items(model, data, current, top_k=5)
+
+    assert len(preds) == 5
+    for item_name, prob in preds:
+        assert isinstance(item_name, str)
+        assert item_name in data["catalog"]
+        assert item_name not in current  # Already in basket should not be recommended
+        assert 0.0 <= prob <= 1.0
+
+    # Test itemset probing
+    probe_res = probe_itemsets(model, data)
+    assert "top1_accuracy" in probe_res
+    assert "top5_accuracy" in probe_res
+    assert "mrr" in probe_res
+    assert 0.0 <= probe_res["top5_accuracy"] <= 1.0
+    assert 0.0 <= probe_res["mrr"] <= 1.0
+
+    # Test milestone_3 wrapper
+    m3_res = milestone_3(model=model, data=data)
+    assert "sample_predictions" in m3_res
+    assert "probe_metrics" in m3_res
 
 
 # Milestone 4: Measure the baseline size and accuracy of the model

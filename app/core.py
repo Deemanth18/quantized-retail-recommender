@@ -196,8 +196,111 @@ def milestone_2(
 
 
 # --- Milestone 3: Implement next-item prediction and itemset probing
-def milestone_3():  # TODO(milestone 3)
-    raise NotImplementedError("TODO(milestone 3)")
+# Hint: Use the language model for next-item prediction and itemset probing.
+def predict_next_items(
+    model: nn.Module,
+    data: dict[str, Any],
+    current_basket: list[str],
+    top_k: int = 5,
+) -> list[tuple[str, float]]:
+    """Predict and rank the most likely next items given items currently in the basket."""
+    model.eval()
+    item_to_id = data["item_to_id"]
+    id_to_item = data["id_to_item"]
+    bos_id = item_to_id["<bos>"]
+
+    # Convert visible basket items to tokens
+    valid_ids = [item_to_id[it] for it in current_basket if it in item_to_id]
+    seq_ids = [bos_id] + valid_ids
+
+    input_tensor = torch.tensor([seq_ids], dtype=torch.long)
+    with torch.no_grad():
+        logits, _ = model(input_tensor)
+        next_logits = logits[0, -1, :].clone()
+
+    # Mask special tokens and items already present in the basket
+    masked_ids = {0, item_to_id.get("<bos>", 1), item_to_id.get("<eos>", 2)}
+    masked_ids.update(valid_ids)
+    for mid in masked_ids:
+        if mid < len(next_logits):
+            next_logits[mid] = -float("inf")
+
+    probs = F.softmax(next_logits, dim=-1)
+    top_indices = torch.topk(probs, k=min(top_k, len(probs))).indices.tolist()
+
+    results: list[tuple[str, float]] = []
+    for idx in top_indices:
+        item_name = id_to_item.get(idx, f"item_{idx}")
+        results.append((item_name, float(probs[idx].item())))
+
+    return results
+
+
+def probe_itemsets(
+    model: nn.Module,
+    data: dict[str, Any],
+    rules: list[tuple[list[str], str]] | None = None,
+) -> dict[str, Any]:
+    """Probe language model to evaluate recovery of planted association rules and itemset relationships."""
+    test_rules = rules or FREQUENT_RULES
+    hits_top1 = 0
+    hits_top5 = 0
+    rr_total = 0.0
+    details = []
+
+    for visible, target in test_rules:
+        recs = predict_next_items(model, data, visible, top_k=len(data["catalog"]))
+        rec_items = [name for name, _ in recs]
+
+        if target in rec_items:
+            rank = rec_items.index(target) + 1
+            rr = 1.0 / rank
+            if rank == 1:
+                hits_top1 += 1
+            if rank <= 5:
+                hits_top5 += 1
+        else:
+            rank = len(data["catalog"]) + 1
+            rr = 0.0
+
+        rr_total += rr
+        details.append({
+            "visible": visible,
+            "target": target,
+            "rank": rank,
+            "reciprocal_rank": rr,
+            "top_recommendations": rec_items[:3],
+        })
+
+    n = len(test_rules)
+    return {
+        "top1_accuracy": hits_top1 / n,
+        "top5_accuracy": hits_top5 / n,
+        "mrr": rr_total / n,
+        "details": details,
+    }
+
+
+def milestone_3(
+    model: nn.Module | None = None,
+    data: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Milestone 3: Implement next-item prediction and itemset probing."""
+    if model is None or data is None:
+        model, data = milestone_2()
+
+    # Predict next items for sample basket
+    sample_basket = ["Pasta 500g", "Tomato Sauce 400g"]
+    sample_preds = predict_next_items(model, data, sample_basket, top_k=3)
+
+    # Probe frequent itemsets
+    probe_metrics = probe_itemsets(model, data)
+
+    return {
+        "sample_basket": sample_basket,
+        "sample_predictions": sample_preds,
+        "probe_metrics": probe_metrics,
+    }
 
 
 # --- Milestone 4: Measure the baseline size and accuracy of the model
