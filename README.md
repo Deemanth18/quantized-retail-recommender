@@ -14,7 +14,7 @@ This project develops a smart retail recommender that identifies frequently boug
 
 Tick these off as you go, and commit after each one.
 
-- [ ] **1. Prepare synthetic shopping basket data for training**  
+- [x] **1. Prepare synthetic shopping basket data for training**  
       Hint: Prepare data for language model training.
 - [ ] **2. Continue pretraining a small LM on the basket data**  
       Hint: Continue pretraining the language model.

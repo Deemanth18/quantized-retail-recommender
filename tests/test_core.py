@@ -4,10 +4,34 @@ They start skipped. Remove the `skip` line as you work on each milestone.
 """
 import pytest
 
+from app.core import milestone_1, prepare_synthetic_baskets
+
+
 # Milestone 1: Prepare synthetic shopping basket data for training
-@pytest.mark.skip(reason="remove this line when you start milestone 1")
 def test_milestone_1():
-    raise NotImplementedError("write the test for milestone 1")
+    data = milestone_1()
+
+    assert "baskets" in data
+    assert "catalog" in data
+    assert "vocab" in data
+    assert "item_to_id" in data
+    assert "verbalized" in data
+
+    baskets = data["baskets"]
+    assert len(baskets) >= 1000
+    assert len(data["catalog"]) >= 10
+    assert len(data["vocab"]) > len(data["catalog"])
+
+    # Check sample basket structure
+    first_basket = baskets[0]
+    assert isinstance(first_basket, list)
+    assert len(first_basket) >= 1
+    for item in first_basket:
+        assert item in data["catalog"]
+        assert item in data["item_to_id"]
+
+    # Check verbalization
+    assert data["verbalized"][0].startswith("Basket:")
 
 
 # Milestone 2: Continue pretraining a small LM on the basket data
