@@ -7,9 +7,13 @@ import torch
 
 from app.core import (
     BasketLanguageModel,
+    get_model_size_bytes,
+    measure_baseline,
+    measure_model_accuracy,
     milestone_1,
     milestone_2,
     milestone_3,
+    milestone_4,
     predict_next_items,
     prepare_synthetic_baskets,
     probe_itemsets,
@@ -90,9 +94,19 @@ def test_milestone_3():
 
 
 # Milestone 4: Measure the baseline size and accuracy of the model
-@pytest.mark.skip(reason="remove this line when you start milestone 4")
 def test_milestone_4():
-    raise NotImplementedError("write the test for milestone 4")
+    data = prepare_synthetic_baskets(n_baskets=200, seed=12)
+    model, _ = milestone_2(data=data, epochs=1, max_baskets=100)
+
+    baseline = milestone_4(model=model, data=data)
+
+    assert baseline["model_type"] == "baseline_fp32"
+    assert baseline["size_bytes"] > 0
+    assert baseline["size_mb"] > 0
+    assert baseline["num_parameters"] > 0
+    assert 0.0 <= baseline["top5_accuracy"] <= 1.0
+    assert 0.0 <= baseline["mrr"] <= 1.0
+    assert baseline["latency_ms"] >= 0.0
 
 
 # Milestone 5: Apply dynamic and static post-training quantization to the model

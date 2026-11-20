@@ -20,7 +20,7 @@ Tick these off as you go, and commit after each one.
       Hint: Continue pretraining the language model.
 - [x] **3. Implement next-item prediction and itemset probing**  
       Hint: Use the language model for next-item prediction and itemset probing.
-- [ ] **4. Measure the baseline size and accuracy of the model**  
+- [x] **4. Measure the baseline size and accuracy of the model**  
       Hint: Measure initial model size and accuracy.
 - [ ] **5. Apply dynamic and static post-training quantization to the model**  
       Hint: Apply post-training dynamic and static quantization.

@@ -304,8 +304,88 @@ def milestone_3(
 
 
 # --- Milestone 4: Measure the baseline size and accuracy of the model
-def milestone_4():  # TODO(milestone 4)
-    raise NotImplementedError("TODO(milestone 4)")
+# Hint: Measure initial model size and accuracy.
+def get_model_size_bytes(model: nn.Module) -> int:
+    """Calculate the serialized memory size of the PyTorch model in bytes."""
+    buf = io.BytesIO()
+    torch.save(model.state_dict(), buf)
+    return buf.getbuffer().nbytes
+
+
+def measure_model_accuracy(
+    model: nn.Module,
+    data: dict[str, Any],
+    test_baskets: list[list[str]] | None = None,
+    max_eval: int = 50,
+) -> dict[str, float]:
+    """Evaluate next-item recommendation accuracy and inference latency on held-out baskets."""
+    baskets = test_baskets or data["baskets"]
+    eval_baskets = [b for b in baskets if len(b) >= 2][:max_eval]
+    if not eval_baskets:
+        eval_baskets = [["Bread White", "Butter 200g", "Milk 1L"]]
+
+    hits_top1 = 0
+    hits_top5 = 0
+    rr_sum = 0.0
+    latencies: list[float] = []
+
+    for b in eval_baskets:
+        visible = b[:-1]
+        target = b[-1]
+
+        t0 = time.perf_counter()
+        preds = predict_next_items(model, data, visible, top_k=len(data["catalog"]))
+        dt = (time.perf_counter() - t0) * 1000.0
+        latencies.append(dt)
+
+        items_pred = [it for it, _ in preds]
+        if target in items_pred:
+            rank = items_pred.index(target) + 1
+            if rank == 1:
+                hits_top1 += 1
+            if rank <= 5:
+                hits_top5 += 1
+            rr_sum += 1.0 / rank
+
+    total = len(eval_baskets)
+    return {
+        "top1_accuracy": hits_top1 / total,
+        "top5_accuracy": hits_top5 / total,
+        "mrr": rr_sum / total,
+        "latency_ms": float(np.mean(latencies)) if latencies else 0.0,
+    }
+
+
+def measure_baseline(model: nn.Module, data: dict[str, Any]) -> dict[str, Any]:
+    """Measure the baseline FP32 model size, parameter count, and evaluation metrics."""
+    size_bytes = get_model_size_bytes(model)
+    size_mb = size_bytes / (1024 * 1024)
+    param_count = sum(p.numel() for p in model.parameters())
+
+    acc_metrics = measure_model_accuracy(model, data)
+    probe_metrics = probe_itemsets(model, data)
+
+    return {
+        "model_type": "baseline_fp32",
+        "size_bytes": size_bytes,
+        "size_mb": round(size_mb, 4),
+        "num_parameters": param_count,
+        "top1_accuracy": acc_metrics["top1_accuracy"],
+        "top5_accuracy": acc_metrics["top5_accuracy"],
+        "mrr": acc_metrics["mrr"],
+        "latency_ms": round(acc_metrics["latency_ms"], 2),
+        "probe_top5_accuracy": probe_metrics["top5_accuracy"],
+    }
+
+
+def milestone_4(
+    model: nn.Module | None = None,
+    data: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Milestone 4: Measure the baseline size and accuracy of the model."""
+    if model is None or data is None:
+        model, data = milestone_2()
+    return measure_baseline(model, data)
 
 
 # --- Milestone 5: Apply dynamic and static post-training quantization to the model
