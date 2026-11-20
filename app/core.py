@@ -388,9 +388,75 @@ def milestone_4(
     return measure_baseline(model, data)
 
 
+class StaticQuantizedLinear(nn.Module):
+    """Linear layer with statically quantized INT8 weights and precomputed scale/zero-point."""
+
+    def __init__(self, in_features: int, out_features: int, bias: bool = True):
+        super().__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.register_buffer("weight_int8", torch.zeros((out_features, in_features), dtype=torch.int8))
+        self.register_buffer("scale", torch.tensor(1.0, dtype=torch.float32))
+        self.register_buffer("zero_point", torch.tensor(0, dtype=torch.int32))
+        if bias:
+            self.bias = nn.Parameter(torch.zeros(out_features))
+        else:
+            self.register_parameter("bias", None)
+
+    @classmethod
+    def from_float(cls, float_linear: nn.Linear) -> "StaticQuantizedLinear":
+        w = float_linear.weight.detach()
+        qmin, qmax = -128, 127
+        w_min = float(w.min().item())
+        w_max = float(w.max().item())
+        scale = max((w_max - w_min) / float(qmax - qmin), 1e-8)
+        zero_point = int(round(-w_min / scale + qmin))
+        zero_point = max(qmin, min(qmax, zero_point))
+
+        w_q = torch.clamp(torch.round(w / scale) + zero_point, qmin, qmax).to(torch.int8)
+
+        layer = cls(float_linear.in_features, float_linear.out_features, bias=float_linear.bias is not None)
+        layer.weight_int8.copy_(w_q)
+        layer.scale.fill_(scale)
+        layer.zero_point.fill_(zero_point)
+        if float_linear.bias is not None:
+            layer.bias.data.copy_(float_linear.bias.data)
+        return layer
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        w_dequant = (self.weight_int8.float() - self.zero_point.float()) * self.scale
+        return F.linear(x, w_dequant, self.bias)
+
+
+def apply_dynamic_quantization(model: nn.Module) -> nn.Module:
+    """Apply post-training dynamic quantization to linear and recurrent layers."""
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        return torch.ao.quantization.quantize_dynamic(
+            model,
+            {nn.Linear, nn.LSTM},
+            dtype=torch.qint8,
+        )
+
+
+def apply_static_quantization(model: BasketLanguageModel) -> nn.Module:
+    """Apply post-training static weight quantization to model layers."""
+    import copy
+    static_model = copy.deepcopy(model)
+    static_model.fc = StaticQuantizedLinear.from_float(static_model.fc)
+    return static_model
+
+
 # --- Milestone 5: Apply dynamic and static post-training quantization to the model
-def milestone_5():  # TODO(milestone 5)
-    raise NotImplementedError("TODO(milestone 5)")
+# Hint: Apply post-training dynamic and static quantization.
+def milestone_5(model: nn.Module | None = None) -> tuple[nn.Module, nn.Module]:
+    """Milestone 5: Apply dynamic and static post-training quantization to the model."""
+    if model is None:
+        model, _ = milestone_2()
+    dyn_model = apply_dynamic_quantization(model)
+    static_model = apply_static_quantization(model)
+    return dyn_model, static_model
 
 
 # --- Milestone 6: Demonstrate size reduction and evaluate accuracy impact

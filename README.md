@@ -22,7 +22,7 @@ Tick these off as you go, and commit after each one.
       Hint: Use the language model for next-item prediction and itemset probing.
 - [x] **4. Measure the baseline size and accuracy of the model**  
       Hint: Measure initial model size and accuracy.
-- [ ] **5. Apply dynamic and static post-training quantization to the model**  
+- [x] **5. Apply dynamic and static post-training quantization to the model**  
       Hint: Apply post-training dynamic and static quantization.
 - [ ] **6. Demonstrate size reduction and evaluate accuracy impact**  
       Hint: Demonstrate size reduction and evaluate accuracy changes.

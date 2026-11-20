@@ -7,6 +7,9 @@ import torch
 
 from app.core import (
     BasketLanguageModel,
+    StaticQuantizedLinear,
+    apply_dynamic_quantization,
+    apply_static_quantization,
     get_model_size_bytes,
     measure_baseline,
     measure_model_accuracy,
@@ -14,6 +17,7 @@ from app.core import (
     milestone_2,
     milestone_3,
     milestone_4,
+    milestone_5,
     predict_next_items,
     prepare_synthetic_baskets,
     probe_itemsets,
@@ -110,9 +114,25 @@ def test_milestone_4():
 
 
 # Milestone 5: Apply dynamic and static post-training quantization to the model
-@pytest.mark.skip(reason="remove this line when you start milestone 5")
 def test_milestone_5():
-    raise NotImplementedError("write the test for milestone 5")
+    data = prepare_synthetic_baskets(n_baskets=150, seed=5)
+    model, _ = milestone_2(data=data, epochs=1, max_baskets=100)
+
+    dyn_model, static_model = milestone_5(model=model)
+
+    assert dyn_model is not None
+    assert static_model is not None
+
+    # Test forward pass with dynamic quantized model
+    test_input = torch.tensor([[1, 2, 4]], dtype=torch.long)
+    dyn_logits, _ = dyn_model(test_input)
+    assert dyn_logits.shape == (1, 3, len(data["vocab"]))
+    assert not torch.isnan(dyn_logits).any()
+
+    # Test forward pass with static quantized model
+    static_logits, _ = static_model(test_input)
+    assert static_logits.shape == (1, 3, len(data["vocab"]))
+    assert not torch.isnan(static_logits).any()
 
 
 # Milestone 6: Demonstrate size reduction and evaluate accuracy impact
