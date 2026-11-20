@@ -460,5 +460,70 @@ def milestone_5(model: nn.Module | None = None) -> tuple[nn.Module, nn.Module]:
 
 
 # --- Milestone 6: Demonstrate size reduction and evaluate accuracy impact
-def milestone_6():  # TODO(milestone 6)
-    raise NotImplementedError("TODO(milestone 6)")
+# Hint: Demonstrate size reduction and evaluate accuracy changes.
+def evaluate_quantization_impact(
+    baseline_model: nn.Module,
+    dynamic_model: nn.Module,
+    static_model: nn.Module,
+    data: dict[str, Any],
+) -> dict[str, Any]:
+    """Compare baseline FP32 against dynamic and static quantized models on size, accuracy, and latency."""
+    base_metrics = measure_baseline(baseline_model, data)
+
+    # Dynamic Quantization evaluation
+    dyn_bytes = get_model_size_bytes(dynamic_model)
+    dyn_acc = measure_model_accuracy(dynamic_model, data)
+    dyn_probe = probe_itemsets(dynamic_model, data)
+
+    # Static Quantization evaluation
+    stat_bytes = get_model_size_bytes(static_model)
+    stat_acc = measure_model_accuracy(static_model, data)
+    stat_probe = probe_itemsets(static_model, data)
+
+    dyn_reduction = (1.0 - dyn_bytes / max(1, base_metrics["size_bytes"])) * 100.0
+    stat_reduction = (1.0 - stat_bytes / max(1, base_metrics["size_bytes"])) * 100.0
+
+    dyn_metrics = {
+        "model_type": "dynamic_int8",
+        "size_bytes": dyn_bytes,
+        "size_mb": round(dyn_bytes / (1024 * 1024), 4),
+        "size_reduction_pct": round(dyn_reduction, 2),
+        "top1_accuracy": dyn_acc["top1_accuracy"],
+        "top5_accuracy": dyn_acc["top5_accuracy"],
+        "mrr": dyn_acc["mrr"],
+        "latency_ms": round(dyn_acc["latency_ms"], 2),
+        "probe_top5_accuracy": dyn_probe["top5_accuracy"],
+    }
+
+    stat_metrics = {
+        "model_type": "static_int8",
+        "size_bytes": stat_bytes,
+        "size_mb": round(stat_bytes / (1024 * 1024), 4),
+        "size_reduction_pct": round(stat_reduction, 2),
+        "top1_accuracy": stat_acc["top1_accuracy"],
+        "top5_accuracy": stat_acc["top5_accuracy"],
+        "mrr": stat_acc["mrr"],
+        "latency_ms": round(stat_acc["latency_ms"], 2),
+        "probe_top5_accuracy": stat_probe["top5_accuracy"],
+    }
+
+    return {
+        "baseline": base_metrics,
+        "dynamic_quantized": dyn_metrics,
+        "static_quantized": stat_metrics,
+        "summary": {
+            "dynamic_size_reduction_pct": dyn_metrics["size_reduction_pct"],
+            "static_size_reduction_pct": stat_metrics["size_reduction_pct"],
+        },
+    }
+
+
+def milestone_6(
+    model: nn.Module | None = None,
+    data: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Milestone 6: Demonstrate size reduction and evaluate accuracy impact."""
+    if model is None or data is None:
+        model, data = milestone_2()
+    dyn_model, static_model = milestone_5(model)
+    return evaluate_quantization_impact(model, dyn_model, static_model, data)

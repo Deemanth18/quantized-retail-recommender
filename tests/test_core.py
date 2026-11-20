@@ -10,6 +10,7 @@ from app.core import (
     StaticQuantizedLinear,
     apply_dynamic_quantization,
     apply_static_quantization,
+    evaluate_quantization_impact,
     get_model_size_bytes,
     measure_baseline,
     measure_model_accuracy,
@@ -18,6 +19,7 @@ from app.core import (
     milestone_3,
     milestone_4,
     milestone_5,
+    milestone_6,
     predict_next_items,
     prepare_synthetic_baskets,
     probe_itemsets,
@@ -136,7 +138,26 @@ def test_milestone_5():
 
 
 # Milestone 6: Demonstrate size reduction and evaluate accuracy impact
-@pytest.mark.skip(reason="remove this line when you start milestone 6")
 def test_milestone_6():
-    raise NotImplementedError("write the test for milestone 6")
+    data = prepare_synthetic_baskets(n_baskets=150, seed=7)
+    model, _ = milestone_2(data=data, epochs=1, max_baskets=100)
+
+    comparison = milestone_6(model=model, data=data)
+
+    assert "baseline" in comparison
+    assert "dynamic_quantized" in comparison
+    assert "static_quantized" in comparison
+    assert "summary" in comparison
+
+    dyn = comparison["dynamic_quantized"]
+    stat = comparison["static_quantized"]
+
+    # Demonstrate model size reduction
+    assert dyn["size_reduction_pct"] > 0
+    assert stat["size_reduction_pct"] > 0
+    assert dyn["size_mb"] < comparison["baseline"]["size_mb"]
+
+    # Evaluate accuracy metrics
+    assert 0.0 <= dyn["top5_accuracy"] <= 1.0
+    assert 0.0 <= stat["top5_accuracy"] <= 1.0
 

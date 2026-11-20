@@ -24,7 +24,7 @@ Tick these off as you go, and commit after each one.
       Hint: Measure initial model size and accuracy.
 - [x] **5. Apply dynamic and static post-training quantization to the model**  
       Hint: Apply post-training dynamic and static quantization.
-- [ ] **6. Demonstrate size reduction and evaluate accuracy impact**  
+- [x] **6. Demonstrate size reduction and evaluate accuracy impact**  
       Hint: Demonstrate size reduction and evaluate accuracy changes.
 
 ## Run it
